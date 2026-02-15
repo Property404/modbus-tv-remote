@@ -3,7 +3,6 @@
 //  SPDX-License-Identifier: MIT OR Apache-2.0
 
 #![allow(unused_imports)]
-use anyhow::Result;
 use std::{
     collections::HashMap,
     future,
@@ -18,11 +17,15 @@ use tokio_modbus::{
     server::tcp::{Server, accept_tcp_connection},
 };
 
+pub type CommandFunctionError = ExceptionCode;
+pub trait CommandFunction: Fn(u16) -> Result<(), CommandFunctionError> + Send + Sync {}
+impl<F> CommandFunction for F where F: Fn(u16) -> Result<(), CommandFunctionError> + Send + Sync {}
+
 pub struct CommandServer<F> {
     func: F,
 }
 
-impl<F: Fn(u16) -> Result<(), ExceptionCode>> tokio_modbus::server::Service for CommandServer<F> {
+impl<F: CommandFunction> tokio_modbus::server::Service for CommandServer<F> {
     type Request = Request<'static>;
     type Response = Response;
     type Exception = ExceptionCode;
@@ -33,7 +36,11 @@ impl<F: Fn(u16) -> Result<(), ExceptionCode>> tokio_modbus::server::Service for 
     }
 }
 
-impl<F: Fn(u16) -> Result<(), ExceptionCode>> CommandServer<F> {
+impl<F: CommandFunction> CommandServer<F> {
+    pub fn new(func: F) -> Self {
+        Self { func }
+    }
+
     fn call_sync(&self, req: Request<'static>) -> Result<Response, ExceptionCode> {
         match req {
             Request::ReadCoils(_addr, cnt) => {
@@ -59,48 +66,23 @@ impl<F: Fn(u16) -> Result<(), ExceptionCode>> CommandServer<F> {
             }
         }
     }
+
+    pub async fn serve(mut self, addr: SocketAddr) -> anyhow::Result<()> {
+        let listener = TcpListener::bind(addr).await?;
+        let server = Server::new(listener);
+        let new_service = |_socket_addr| Ok(Some(self));
+        let on_connected = |stream, socket_addr| async move {
+            accept_tcp_connection(stream, socket_addr, new_service)
+        };
+        let on_process_error = |err| {
+            eprintln!("{err}");
+        };
+        server.serve(&on_connected, on_process_error).await?;
+        Ok(())
+    }
 }
 /*
 
-/// Helper function implementing reading registers from a HashMap.
-fn register_read(
-    registers: &HashMap<u16, u16>,
-    addr: u16,
-    cnt: u16,
-) -> Result<Vec<u16>, ExceptionCode> {
-    let mut response_values = vec![0; cnt.into()];
-    for i in 0..cnt {
-        let reg_addr = addr + i;
-        if let Some(r) = registers.get(&reg_addr) {
-            response_values[i as usize] = *r;
-        } else {
-            println!("SERVER: Exception::IllegalDataAddress");
-            return Err(ExceptionCode::IllegalDataAddress);
-        }
-    }
-
-    Ok(response_values)
-}
-
-/// Write a holding register. Used by both the write single register
-/// and write multiple registers requests.
-fn register_write(
-    registers: &mut HashMap<u16, u16>,
-    addr: u16,
-    values: &[u16],
-) -> Result<(), ExceptionCode> {
-    for (i, value) in values.iter().enumerate() {
-        let reg_addr = addr + i as u16;
-        if let Some(r) = registers.get_mut(&reg_addr) {
-            *r = *value;
-        } else {
-            println!("SERVER: Exception::IllegalDataAddress");
-            return Err(ExceptionCode::IllegalDataAddress);
-        }
-    }
-
-    Ok(())
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
