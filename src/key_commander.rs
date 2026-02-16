@@ -1,8 +1,6 @@
 use anyhow::anyhow;
 use std::sync::LazyLock;
 use std::sync::Mutex;
-use std::thread;
-use std::time::Duration;
 
 use crate::server::CommandFunctionError;
 use mouse_keyboard_input::VirtualDevice;
