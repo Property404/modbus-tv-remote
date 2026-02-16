@@ -18,9 +18,16 @@ use tokio_modbus::{
 };
 
 pub type CommandFunctionError = ExceptionCode;
-pub trait CommandFunction: Fn(u16) -> Result<(), CommandFunctionError> + Send + Sync {}
-impl<F> CommandFunction for F where F: Fn(u16) -> Result<(), CommandFunctionError> + Send + Sync {}
+pub trait CommandFunction:
+    Fn(u16) -> Result<(), CommandFunctionError> + Send + Sync + Clone + 'static
+{
+}
+impl<F> CommandFunction for F where
+    F: Fn(u16) -> Result<(), CommandFunctionError> + Send + Sync + Clone + 'static
+{
+}
 
+#[derive(Clone)]
 pub struct CommandServer<F> {
     func: F,
 }
@@ -67,10 +74,10 @@ impl<F: CommandFunction> CommandServer<F> {
         }
     }
 
-    pub async fn serve(mut self, addr: SocketAddr) -> anyhow::Result<()> {
+    pub async fn serve(&self, addr: SocketAddr) -> anyhow::Result<()> {
         let listener = TcpListener::bind(addr).await?;
         let server = Server::new(listener);
-        let new_service = |_socket_addr| Ok(Some(self));
+        let new_service = |_socket_addr| Ok(Some(self.clone()));
         let on_connected = |stream, socket_addr| async move {
             accept_tcp_connection(stream, socket_addr, new_service)
         };
