@@ -13,7 +13,15 @@ pub static VD: LazyLock<Mutex<VirtualDevice>> = LazyLock::new(|| {
 
 pub fn key_commander_inner(val: u16) -> anyhow::Result<()> {
     if ![
-        KEY_LEFT, KEY_UP, KEY_RIGHT, KEY_DOWN, KEY_SPACE, KEY_ENTER, KEY_ESC,
+        KEY_LEFT,
+        KEY_UP,
+        KEY_RIGHT,
+        KEY_DOWN,
+        KEY_SPACE,
+        KEY_ENTER,
+        KEY_ESC,
+        KEY_BACKSPACE,
+        KEY_FN_ESC,
     ]
     .contains(&val)
     {
