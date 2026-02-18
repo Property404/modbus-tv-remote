@@ -1,11 +1,8 @@
-#![allow(unused)]
 use anyhow::Result;
-use device_query::{DeviceEvents, DeviceEventsHandler};
-use device_query::{DeviceQuery, DeviceState, Keycode, MouseState};
+use device_query::{DeviceQuery, DeviceState, Keycode};
 use mouse_keyboard_input::key_codes;
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
-use std::time::Duration;
 use tokio_modbus::prelude::*;
 
 struct ModbusClient {
@@ -61,7 +58,7 @@ async fn run_client_inner(client: &mut ModbusClient) -> Result<()> {
                 // Flip
                 states.insert(*key, !states[key]);
             }
-            if (states[key] == false) {
+            if !states[key] {
                 println!("[{key:?}]");
                 if let Some(addr) = translate(*key) {
                     client.send_command(addr).await?;
@@ -69,11 +66,8 @@ async fn run_client_inner(client: &mut ModbusClient) -> Result<()> {
             }
         }
 
-        //tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         previous = current;
     }
-
-    Ok(())
 }
 
 pub async fn run_client(socket_addr: SocketAddr) -> Result<()> {
