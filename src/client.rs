@@ -42,6 +42,8 @@ fn translate(key: KeyCode) -> Option<u16> {
         KeyCode::Escape => Some(key_codes::KEY_ESC),
         KeyCode::Char('x') => Some(key_codes::KEY_X),
         KeyCode::Char('c') => Some(key_codes::KEY_C),
+        KeyCode::Char('-') => Some(key_codes::KEY_MINUS),
+        KeyCode::Char('+') => Some(key_codes::KEY_EQUAL),
         _ => None,
     }
 }
@@ -53,16 +55,16 @@ async fn run_client_inner(client: &mut ModbusClient) -> Result<()> {
     loop {
         stdin.read_exact(&mut buf).unwrap();
         for keycode in decoder.write(buf[0]) {
-            print![
-                "code={:?} bytes={:?} printable={:?}\r\n",
-                keycode,
-                keycode.bytes(),
-                keycode.printable()
-            ];
             if keycode == KeyCode::CtrlC {
                 return Ok(());
             }
-            if let Some(addr) = translate(keycode) {
+            if let Some(addr) = translate(keycode.clone()) {
+                print![
+                    "code={:?} bytes={:?} printable={:?} => {addr}\r\n",
+                    keycode,
+                    keycode.bytes(),
+                    keycode.printable()
+                ];
                 client.send_command(addr).await?;
             }
         }

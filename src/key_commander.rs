@@ -24,6 +24,8 @@ pub fn key_commander_inner(val: u16) -> anyhow::Result<()> {
         KEY_FN_ESC,
         KEY_X,
         KEY_C,
+        KEY_MINUS,
+        KEY_EQUAL,
     ]
     .contains(&val)
     {
