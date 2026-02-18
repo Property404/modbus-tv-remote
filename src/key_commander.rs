@@ -12,21 +12,13 @@ pub static VD: LazyLock<Mutex<VirtualDevice>> = LazyLock::new(|| {
 });
 
 pub fn key_commander_inner(val: u16) -> anyhow::Result<()> {
-    let key = match val {
-        0 => KEY_LEFT,
-        1 => KEY_UP,
-        2 => KEY_RIGHT,
-        3 => KEY_DOWN,
-        4 => KEY_SPACE,
-        5 => KEY_ENTER,
-        _ => {
-            return Ok(());
-        }
-    };
-    println!("{val} => {key}");
+    if ![KEY_LEFT, KEY_UP, KEY_RIGHT, KEY_DOWN, KEY_SPACE, KEY_ENTER].contains(&val) {
+        return Ok(());
+    }
+    println!("Received {val}");
 
     let mut vd = VD.lock().expect("Poisoned lock");
-    vd.click(key)
+    vd.click(val)
         .map_err(|err| anyhow!("Failed to click: {err}"))?;
     Ok(())
 }
