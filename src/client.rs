@@ -1,8 +1,9 @@
 use anyhow::Result;
-use device_query::{DeviceQuery, DeviceState, Keycode};
 use mouse_keyboard_input::key_codes;
-use std::collections::{HashMap, HashSet};
+use raw_tty::IntoRawMode;
+use std::io::Read;
 use std::net::SocketAddr;
+use terminal_keycode::{Decoder, KeyCode};
 use tokio_modbus::prelude::*;
 
 struct ModbusClient {
@@ -29,44 +30,42 @@ impl ModbusClient {
     }
 }
 
-fn translate(key: Keycode) -> Option<u16> {
+fn translate(key: KeyCode) -> Option<u16> {
     match key {
-        Keycode::Up => Some(key_codes::KEY_UP),
-        Keycode::Down => Some(key_codes::KEY_DOWN),
-        Keycode::Left => Some(key_codes::KEY_LEFT),
-        Keycode::Right => Some(key_codes::KEY_RIGHT),
-        Keycode::Enter => Some(key_codes::KEY_ENTER),
-        Keycode::Space => Some(key_codes::KEY_SPACE),
+        KeyCode::ArrowUp => Some(key_codes::KEY_UP),
+        KeyCode::ArrowDown => Some(key_codes::KEY_DOWN),
+        KeyCode::ArrowLeft => Some(key_codes::KEY_LEFT),
+        KeyCode::ArrowRight => Some(key_codes::KEY_RIGHT),
+        KeyCode::Enter => Some(key_codes::KEY_ENTER),
+        KeyCode::Space => Some(key_codes::KEY_SPACE),
+        KeyCode::Backspace => Some(key_codes::KEY_BACKSPACE),
+        KeyCode::Escape => Some(key_codes::KEY_ESC),
+        KeyCode::Char('x') => Some(key_codes::KEY_X),
+        KeyCode::Char('c') => Some(key_codes::KEY_C),
         _ => None,
     }
 }
 
 async fn run_client_inner(client: &mut ModbusClient) -> Result<()> {
-    let device_state = DeviceState::new();
-
-    let mut states = HashMap::<Keycode, bool>::new();
-    let mut previous = HashSet::<Keycode>::new();
+    let mut stdin = std::io::stdin().into_raw_mode().unwrap();
+    let mut buf = vec![0];
+    let mut decoder = Decoder::new();
     loop {
-        let current = device_state.get_keys();
-        let current: HashSet<Keycode> = HashSet::from_iter(current.into_iter());
-        let pressed = current.symmetric_difference(&previous);
-
-        for key in pressed {
-            if !states.contains_key(key) {
-                states.insert(*key, false);
-            } else {
-                // Flip
-                states.insert(*key, !states[key]);
+        stdin.read_exact(&mut buf).unwrap();
+        for keycode in decoder.write(buf[0]) {
+            print![
+                "code={:?} bytes={:?} printable={:?}\r\n",
+                keycode,
+                keycode.bytes(),
+                keycode.printable()
+            ];
+            if keycode == KeyCode::CtrlC {
+                return Ok(());
             }
-            if !states[key] {
-                println!("[{key:?}]");
-                if let Some(addr) = translate(*key) {
-                    client.send_command(addr).await?;
-                }
+            if let Some(addr) = translate(keycode) {
+                client.send_command(addr).await?;
             }
         }
-
-        previous = current;
     }
 }
 
