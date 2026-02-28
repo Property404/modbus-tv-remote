@@ -32,10 +32,10 @@ impl ModbusClient {
 
 fn translate(key: KeyCode) -> Option<u16> {
     match key {
-        KeyCode::ArrowUp => Some(key_codes::KEY_UP),
-        KeyCode::ArrowDown => Some(key_codes::KEY_DOWN),
-        KeyCode::ArrowLeft => Some(key_codes::KEY_LEFT),
-        KeyCode::ArrowRight => Some(key_codes::KEY_RIGHT),
+        KeyCode::Char('k') | KeyCode::ArrowUp => Some(key_codes::KEY_UP),
+        KeyCode::Char('j') | KeyCode::ArrowDown => Some(key_codes::KEY_DOWN),
+        KeyCode::Char('h') | KeyCode::ArrowLeft => Some(key_codes::KEY_LEFT),
+        KeyCode::Char('l') | KeyCode::ArrowRight => Some(key_codes::KEY_RIGHT),
         KeyCode::Enter => Some(key_codes::KEY_ENTER),
         KeyCode::Space => Some(key_codes::KEY_SPACE),
         KeyCode::Backspace => Some(key_codes::KEY_BACKSPACE),
@@ -43,7 +43,7 @@ fn translate(key: KeyCode) -> Option<u16> {
         KeyCode::Char('x') => Some(key_codes::KEY_X),
         KeyCode::Char('c') => Some(key_codes::KEY_C),
         KeyCode::Char('-') => Some(key_codes::KEY_MINUS),
-        KeyCode::Char('+') => Some(key_codes::KEY_EQUAL),
+        KeyCode::Char('=') | KeyCode::Char('+') => Some(key_codes::KEY_EQUAL),
         _ => None,
     }
 }
