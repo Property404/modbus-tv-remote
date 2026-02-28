@@ -1,8 +1,8 @@
 use anyhow::Result;
 use mouse_keyboard_input::key_codes;
 use raw_tty::IntoRawMode;
-use std::io::Read;
 use std::net::SocketAddr;
+use std::{io::Read, time::Instant};
 use terminal_keycode::{Decoder, KeyCode};
 use tokio_modbus::prelude::*;
 
@@ -59,13 +59,16 @@ async fn run_client_inner(client: &mut ModbusClient) -> Result<()> {
                 return Ok(());
             }
             if let Some(addr) = translate(keycode.clone()) {
-                print![
-                    "code={:?} bytes={:?} printable={:?} => {addr}\r\n",
+                let start = Instant::now();
+                client.send_command(addr).await?;
+                let elapsed = Instant::now() - start;
+                println! {
+                    "{}ms | code={:?} bytes={:?} printable={:?} => {addr}\r",
+                    elapsed.as_millis(),
                     keycode,
                     keycode.bytes(),
                     keycode.printable()
-                ];
-                client.send_command(addr).await?;
+                };
             }
         }
     }
